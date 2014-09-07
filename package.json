@@ -1,0 +1,38 @@
+{
+  "name": "whiteboard",
+  "description": "WebRTC Whiteboard",
+  "version": "1.0.0",
+  "author": "Feross Aboukhadijeh <feross@feross.org> (http://feross.org/)",
+  "bugs": {
+    "url": "https://github.com/feross/whiteboard/issues"
+  },
+  "dependencies": {
+    "hat": "0.0.3",
+    "node-static": "^0.7.3",
+    "webtorrent-tracker": "^0.3.0"
+  },
+  "devDependencies": {
+    "nodemon": "^1.2.1",
+    "watchify": "^1.0.2"
+  },
+  "homepage": "http://github.com/feross/whiteboard",
+  "keywords": [
+    "p2p",
+    "webrtc",
+    "data channel",
+    "file transfer",
+    "whiteboard"
+  ],
+  "license": "MIT",
+  "main": "server.js",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/feross/whiteboard.git"
+  },
+  "scripts": {
+    "build": "browserify client > static/bundle.js",
+    "start": "node server.js",
+    "watch": "watchify client -o static/bundle.js -dv & DEBUG=whiteboard* nodemon server.js"
+  }
+}
