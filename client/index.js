@@ -26,14 +26,19 @@ function createCanvas () {
   // set stroke options
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
-  ctx.fillStyle = 'rgb(200,0,0)'
-  ctx.lineWidth = 6
+  ctx.strokeStyle = 'rgb(0,0,0)'
+  ctx.lineWidth = 5
+
+  // set font options
+  ctx.fillStyle = 'rgb(255,0,0)'
+  ctx.font='16px sans-serif'
 
   document.body.appendChild(canvas)
 }
 
 var paths = {}
 var currentPathId = null
+var peers = []
 
 function redraw () {
   // clear canvas
@@ -51,11 +56,16 @@ function redraw () {
     })
     ctx.stroke()
   })
+
+  // draw usernames
+  peers.forEach(function (peer, i) {
+    var username = peer.username || '<new peer>'
+    ctx.fillText(username, 20, window.innerHeight - 20 - (i * 20))
+  })
 }
 
 var id = new Buffer(hat(160), 'hex')
 var username = window.prompt('What is your name?')
-var peers = []
 
 function startTracker () {
   var tracker = new Tracker(id, {
@@ -70,7 +80,10 @@ function startTracker () {
     peers.push(peer)
     peer.send({ id: id.toString('hex'), username: username })
     peer.send({ paths: paths })
-    peer.on('message', onMessage)
+    peer.on('message', onMessage.bind(undefined, peer))
+    peer.on('close', function () {
+      peers.splice(peers.indexOf(peer), 1)
+    })
   })
 }
 
@@ -80,11 +93,14 @@ function broadcast (obj) {
   })
 }
 
-function onMessage (data) {
+function onMessage (peer, data) {
   console.log(data)
 
-  if (data.username && data.id)
-    console.log('got new peer', data.username, data.id)
+  if (data.username && data.id) {
+    peer.username = data.username
+    peer.id = data.id
+    redraw()
+  }
 
   if (data.paths) {
     console.log('got paths' + data.paths)
@@ -103,7 +119,6 @@ function onMessage (data) {
     paths[data.i].push(data.p)
     redraw()
   }
-
 }
 
 startTracker()
@@ -121,7 +136,7 @@ canvas.addEventListener('mousedown', function (e) {
   broadcast({ i: currentPathId, p: p2 })
 })
 
-document.body.addEventListener('mouseup', function (e) {
+document.body.addEventListener('mouseup', function () {
   currentPathId = null
 })
 
