@@ -42,3 +42,9 @@ canvas {
   /*border: 1px solid red;*/
   cursor: crosshair;
 }
+
+.drag {
+  background: rgba(255, 0, 0, 0.3);
+  border: red 5px dashed;
+}
+

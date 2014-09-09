@@ -7,9 +7,12 @@
     "url": "https://github.com/feross/whiteboard/issues"
   },
   "dependencies": {
+    "bittorrent-client": "0.x",
+    "concat-stream": "^1.4.6",
+    "drag-drop": "^1.1.1",
     "hat": "0.0.3",
     "node-static": "^0.7.3",
-    "webtorrent-tracker": "^0.3.0"
+    "webtorrent-tracker": "0.x"
   },
   "devDependencies": {
     "nodemon": "^1.2.1",
