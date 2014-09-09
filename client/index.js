@@ -115,7 +115,6 @@ function redraw () {
             data.width / 2, data.height / 2
           )
         } else if (torrentData[data.infoHash].videoStream) {
-          console.log('createVideoElement')
           if (document.querySelector('#' + 'infoHash_' + data.infoHash)) return
           var video = document.createElement('video')
           video.style.left = (data.pos.x - 150) + 'px'
@@ -236,27 +235,28 @@ dragDrop('body', function (files, pos) {
   client.seed(files, function (torrent) {
     if (/.webm$/.test(files[0].name)) {
       var message = {
+        video: true,
         infoHash: torrent.infoHash,
-        pos: pos,
-        video: true
+        pos: pos
       }
       broadcast(message)
       state[torrent.infoHash] = message
-      var s = new stream.PassThrough()
-      s.end(files[0].buffer)
+
+      var videoStream = new stream.PassThrough()
+      videoStream.end(files[0].buffer)
       torrentData[torrent.infoHash] = {
         complete: true,
-        videoStream: s
+        videoStream: videoStream
       }
       redraw()
     } else {
       bufToImage(files[0].buffer, function (img) {
         var message = {
+          img: true,
           infoHash: torrent.infoHash,
           pos: pos,
           width: img.width,
-          height: img.height,
-          img: true
+          height: img.height
         }
         broadcast(message)
         state[torrent.infoHash] = message
@@ -287,12 +287,10 @@ function pipeToVideo (stream, video) {
   video.src = url
 
   var sourceopen = once(function () {
-    console.log('mediaSource readyState: ' + this.readyState)
     var sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vorbis,vp8"')
 
     var chunks = []
     stream.pipe(through(function (buf) {
-      console.log('sourceBuffer.append')
       chunks.push(buf)
       flow()
     }))
@@ -311,20 +309,12 @@ function pipeToVideo (stream, video) {
     sourceBuffer.addEventListener('updateend', flow)
 
     stream.on('end', function () {
-      console.log('end')
       mediaSource.endOfStream()
     })
   })
 
-  function sourceended () {
-    console.log('mediaSource readyState: ' + this.readyState)
-  }
-
   mediaSource.addEventListener('webkitsourceopen', sourceopen, false)
   mediaSource.addEventListener('sourceopen', sourceopen, false)
-
-  mediaSource.addEventListener('webkitsourceended', sourceended, false)
-  mediaSource.addEventListener('sourceended', sourceended, false)
 }
 
 var ua = navigator.userAgent.toLowerCase()
