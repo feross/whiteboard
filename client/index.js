@@ -76,7 +76,7 @@ function redraw () {
         imgs[data.infoHash] = { complete: false, img: null }
         client.download({
           infoHash: data.infoHash,
-          announce: [ 'ws://tracker.webtorrent.io:9003' ]
+          announce: [ 'ws://tracker.webtorrent.io' ]
         }, function (torrent) {
           torrent.files[0].createReadStream().pipe(concat(function (buf) {
             bufToImage(buf, function (img) {
@@ -106,7 +106,7 @@ function redraw () {
 }
 
 var tracker = new Tracker(peerId, {
-  announce: [ 'ws://tracker.webtorrent.io:9003' ],
+  announce: [ 'ws://tracker.webtorrent.io' ],
   infoHash: new Buffer(20)
 })
 
