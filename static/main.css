@@ -48,3 +48,6 @@ canvas {
   border: red 5px dashed;
 }
 
+video {
+  position: absolute;
+}
