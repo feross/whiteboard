@@ -3,8 +3,9 @@ var concat = require('concat-stream')
 var dragDrop = require('drag-drop/buffer')
 var hat = require('hat')
 var once = require('once')
-var Tracker = require('webtorrent-tracker')
+var stream = require('stream')
 var through = require('through')
+var Tracker = require('webtorrent-tracker')
 
 var username
 while (!(username = window.prompt('What is your name?'))) {}
@@ -196,8 +197,8 @@ canvas.addEventListener('touchstart', onDown)
 function onDown (e) {
   e.preventDefault()
   currentPathId = hat(80)
-  var x = e.clientX || (e.changedTouches[0] && e.changedTouches[0].pageX)
-  var y = e.clientY || (e.changedTouches[0] && e.changedTouches[0].pageY)
+  var x = e.clientX || (e.changedTouches && e.changedTouches[0] && e.changedTouches[0].pageX) || 0
+  var y = e.clientY || (e.changedTouches && e.changedTouches[0] && e.changedTouches[0].pageY) || 0
   var p1 = { x: x, y: y }
   var p2 = {
     x: x + 0.001,
@@ -221,8 +222,8 @@ canvas.addEventListener('mousemove', onMove)
 canvas.addEventListener('touchmove', onMove)
 
 function onMove (e) {
-  var x = e.clientX || (e.changedTouches[0] && e.changedTouches[0].pageX)
-  var y = e.clientY || (e.changedTouches[0] && e.changedTouches[0].pageY)
+  var x = e.clientX || (e.changedTouches && e.changedTouches[0] && e.changedTouches[0].pageX) || 0
+  var y = e.clientY || (e.changedTouches && e.changedTouches[0] && e.changedTouches[0].pageY) || 0
   if (currentPathId) {
     var pt = { x: x, y: y }
     state[currentPathId].pts.push(pt)
@@ -241,9 +242,11 @@ dragDrop('body', function (files, pos) {
       }
       broadcast(message)
       state[torrent.infoHash] = message
+      var s = new stream.PassThrough()
+      s.end(files[0].buffer)
       torrentData[torrent.infoHash] = {
         complete: true,
-        videoStream: torrent.files[0].createReadStream()
+        videoStream: s
       }
       redraw()
     } else {
@@ -275,6 +278,7 @@ function bufToImage (buf, cb) {
 }
 
 function pipeToVideo (stream, video) {
+  window.video = video
   var MediaSource_ = window.MediaSource || window.WebKitMediaSource
 
   var mediaSource = new MediaSource_()
@@ -291,17 +295,20 @@ function pipeToVideo (stream, video) {
       console.log('sourceBuffer.append')
       chunks.push(buf)
       flow()
-      video.play()
     }))
+
+    var play = once(function () {
+      video.play()
+    })
 
     function flow () {
       if (sourceBuffer.updating) return
+      play()
       var buf = chunks.shift()
       if (buf) sourceBuffer.appendBuffer(buf)
     }
 
     sourceBuffer.addEventListener('updateend', flow)
-
 
     stream.on('end', function () {
       console.log('end')
@@ -318,5 +325,9 @@ function pipeToVideo (stream, video) {
 
   mediaSource.addEventListener('webkitsourceended', sourceended, false)
   mediaSource.addEventListener('sourceended', sourceended, false)
+}
 
+var ua = navigator.userAgent.toLowerCase()
+if (ua.indexOf('android') > -1) {
+  document.body.className = 'android'
 }

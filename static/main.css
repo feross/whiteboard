@@ -43,6 +43,11 @@ canvas {
   cursor: crosshair;
 }
 
+body:not(.android) canvas {
+  z-index: 1000;
+  position: absolute;
+}
+
 .drag {
   background: rgba(255, 0, 0, 0.3);
   border: red 5px dashed;
