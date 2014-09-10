@@ -7,17 +7,20 @@ var stream = require('stream')
 var through = require('through')
 var Tracker = require('webtorrent-tracker')
 
+// prompt user for their name
 var username
 while (!(username = window.prompt('What is your name?'))) {}
 if (!username) username = 'No Name'
 
+// pick random stroke color
 var color = 'rgb(' + hat(8, 10) + ',' + hat(8, 10) + ',' + hat(8, 10) + ')'
+
 var currentPathId = null
 var state = {}
-var torrentData = {}
-
 var peers = []
 var peerId = new Buffer(hat(160), 'hex')
+
+var torrentData = {}
 var client = new Client({ peerId: peerId })
 
 // create canvas
@@ -137,57 +140,10 @@ function redraw () {
     })
 }
 
-var tracker = new Tracker(peerId, {
-  announce: [ 'wss://tracker.webtorrent.io' ],
-  infoHash: new Buffer(20)
-})
-
-tracker.start()
-
-tracker.on('peer', function (peer) {
-  peers.push(peer)
-  peer.send({ username: username, color: color, state: state })
-  peer.on('message', onMessage.bind(undefined, peer))
-  peer.on('close', function () {
-    peers.splice(peers.indexOf(peer), 1)
-    redraw()
-  })
-})
-
 function broadcast (obj) {
   peers.forEach(function (peer) {
     peer.send(obj)
   })
-}
-
-function onMessage (peer, data) {
-  if (data.username) {
-    peer.username = data.username
-    peer.color = data.color
-    redraw()
-  }
-
-  if (data.state) {
-    Object.keys(data.state)
-      .filter(function (id) {
-        return !state[id]
-      })
-      .forEach(function (id) {
-        state[id] = data.state[id]
-      })
-    redraw()
-  }
-
-  if (data.pt) {
-    if (!state[data.i]) state[data.i] = { pts: [], color: data.color }
-    state[data.i].pts.push(data.pt)
-    redraw()
-  }
-
-  if (data.infoHash) {
-    state[data.infoHash] = data
-    redraw()
-  }
 }
 
 canvas.addEventListener('mousedown', onDown)
@@ -227,6 +183,57 @@ function onMove (e) {
     var pt = { x: x, y: y }
     state[currentPathId].pts.push(pt)
     broadcast({ i: currentPathId, pt: pt })
+    redraw()
+  }
+}
+
+var tracker = new Tracker(peerId, {
+  announce: [ 'wss://tracker.webtorrent.io' ],
+  infoHash: new Buffer(20) // all zeroes in the browser
+})
+
+tracker.start()
+
+tracker.on('peer', function (peer) {
+  peers.push(peer)
+  peer.send({ username: username, color: color, state: state })
+  peer.on('message', onMessage.bind(undefined, peer))
+
+  function onClose () {
+    peers.splice(peers.indexOf(peer), 1)
+    redraw()
+  }
+
+  peer.on('close', onClose)
+  peer.on('error', onClose)
+})
+
+function onMessage (peer, data) {
+  if (data.username) {
+    peer.username = data.username
+    peer.color = data.color
+    redraw()
+  }
+
+  if (data.state) {
+    Object.keys(data.state)
+      .filter(function (id) {
+        return !state[id]
+      })
+      .forEach(function (id) {
+        state[id] = data.state[id]
+      })
+    redraw()
+  }
+
+  if (data.pt) {
+    if (!state[data.i]) state[data.i] = { pts: [], color: data.color }
+    state[data.i].pts.push(data.pt)
+    redraw()
+  }
+
+  if (data.infoHash) {
+    state[data.infoHash] = data
     redraw()
   }
 }
