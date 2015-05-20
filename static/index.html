@@ -4,9 +4,19 @@
     <title>Whiteboard</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="stylesheet" href="/main.css" charset="utf-8" />
+    <link rel="stylesheet" href="style.css" charset="utf-8" />
   </head>
   <body>
-    <script src="/bundle.js"></script>
+    <script>
+    if (typeof require !== 'function') {
+      // If we are in a web env
+      var script = document.createElement('script')
+      script.src = 'bundle.js'
+      document.currentScript.parentNode.insertBefore(script, document.currentScript)
+    } else {
+      // If we are in the electron env
+      require('../client')
+    }
+    </script>
   </body>
 </html>

@@ -1,16 +1,17 @@
-var Client = require('bittorrent-client')
+var catNames = require('cat-names')
 var concat = require('concat-stream')
 var dragDrop = require('drag-drop/buffer')
 var hat = require('hat')
 var once = require('once')
 var stream = require('stream')
 var through = require('through')
-var Tracker = require('webtorrent-tracker')
+var Tracker = require('bittorrent-tracker/client')
+var WebTorrent = require('webtorrent')
 
-// prompt user for their name
-var username
-while (!(username = window.prompt('What is your name?'))) {}
-if (!username) username = 'No Name'
+// var TRACKER_URL = 'wss://tracker.webtorrent.io'
+var TRACKER_URL = 'ws://localhost:9000'
+
+var username = catNames.random()
 
 // pick random stroke color
 var color = 'rgb(' + hat(8, 10) + ',' + hat(8, 10) + ',' + hat(8, 10) + ')'
@@ -21,7 +22,7 @@ var peers = []
 var peerId = new Buffer(hat(160), 'hex')
 
 var torrentData = {}
-var client = new Client({ peerId: peerId })
+var client = new WebTorrent({ peerId: peerId })
 
 // create canvas
 var canvas = document.createElement('canvas')
@@ -56,7 +57,7 @@ function setupCanvas () {
 
   // set font options
   ctx.fillStyle = 'rgb(255,0,0)'
-  ctx.font ='16px sans-serif'
+  ctx.font = '16px sans-serif'
   redraw()
 }
 
@@ -85,7 +86,7 @@ function redraw () {
         torrentData[data.infoHash] = { complete: false }
         client.download({
           infoHash: data.infoHash,
-          announce: [ 'wss://tracker.webtorrent.io' ]
+          announce: [ TRACKER_URL ]
         }, function (torrent) {
           var file = torrent.files[0]
           if (!file) return
@@ -133,8 +134,10 @@ function redraw () {
 
   // draw usernames
   peers.concat({ color: color, username: username })
+    .filter(function (peer) {
+      return !!peer.username
+    })
     .forEach(function (peer, i) {
-      if (!peer.username) return
       ctx.fillStyle = peer.color
       ctx.fillText(peer.username, 20, window.innerHeight - 20 - (i * 20))
     })
@@ -142,7 +145,7 @@ function redraw () {
 
 function broadcast (obj) {
   peers.forEach(function (peer) {
-    peer.send(obj)
+    if (peer.connected) peer.send(obj)
   })
 }
 
@@ -187,25 +190,35 @@ function onMove (e) {
   }
 }
 
-var tracker = new Tracker(peerId, {
-  announce: [ 'wss://tracker.webtorrent.io' ],
-  infoHash: new Buffer(20) // all zeroes in the browser
+var tracker = new Tracker(peerId, 0, {
+  announce: [ TRACKER_URL ],
+  infoHash: new Buffer(20).fill('webrtc-whiteboard')
 })
 
 tracker.start()
 
 tracker.on('peer', function (peer) {
   peers.push(peer)
-  peer.send({ username: username, color: color, state: state })
-  peer.on('message', onMessage.bind(undefined, peer))
 
-  function onClose () {
-    peers.splice(peers.indexOf(peer), 1)
-    redraw()
+  if (peer.connected) onConnect()
+  else peer.once('connect', onConnect)
+
+  function onConnect () {
+    peer.send({ username: username, color: color, state: state })
+    peer.on('data', onMessage.bind(undefined, peer))
+
+    function onClose () {
+      peer.removeListener('close', onClose)
+      peer.removeListener('error', onClose)
+      peer.removeListener('end', onClose)
+      peers.splice(peers.indexOf(peer), 1)
+      redraw()
+    }
+
+    peer.on('close', onClose)
+    peer.on('error', onClose)
+    peer.on('end', onClose)
   }
-
-  peer.on('close', onClose)
-  peer.on('error', onClose)
 })
 
 function onMessage (peer, data) {
@@ -275,10 +288,8 @@ dragDrop('body', function (files, pos) {
 })
 
 function bufToImage (buf, cb) {
-  var img = new Image()
-  img.src = URL.createObjectURL(
-    new Blob([ buf ])
-  )
+  var img = new window.Image()
+  img.src = window.URL.createObjectURL(new window.Blob([ buf ]))
   img.onload = function () {
     cb(img)
   }

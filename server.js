@@ -5,4 +5,6 @@ var port = process.argv[2] || 3000
 var app = express()
 app.use(compression())
 app.use(express.static(__dirname + '/static'))
-app.listen(port)
+app.listen(port, function () {
+  console.log('listening on port ' + port)
+})
