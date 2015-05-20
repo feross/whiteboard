@@ -11,7 +11,7 @@
     "cat-names": "^1.0.2",
     "compression": "^1.1.0",
     "concat-stream": "^1.4.6",
-    "drag-drop": "^1.0.0",
+    "drag-drop": "^2.0.0",
     "electron-prebuilt": "^0.26.0",
     "express": "^4.9.0",
     "hat": "0.0.3",

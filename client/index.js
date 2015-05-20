@@ -1,6 +1,5 @@
 var catNames = require('cat-names')
-var concat = require('concat-stream')
-var dragDrop = require('drag-drop/buffer')
+var dragDrop = require('drag-drop')
 var hat = require('hat')
 var once = require('once')
 var stream = require('stream')
@@ -97,12 +96,14 @@ function redraw () {
           var file = torrent.files[0]
           if (!file) return
           if (data.img) {
-            file.createReadStream().pipe(concat(function (buf) {
-              bufToImage(buf, function (img) {
+            file.getBuffer(function (err, buf) {
+              if (err) return console.error(err)
+              toImage(buf, function (err, img) {
+                if (err) return console.error(err)
                 torrentData[data.infoHash] = { complete: true, img: img }
                 redraw()
               })
-            }))
+            })
           } else if (data.video) {
             torrentData[data.infoHash] = {
               complete: true,
@@ -111,11 +112,6 @@ function redraw () {
             redraw()
           }
         })
-        ctx.fillStyle = 'rgb(210,210,210)'
-        ctx.fillRect(
-          data.pos.x - (data.width / 4), data.pos.y - (data.height / 4),
-          data.width / 2, data.height / 2
-        )
       }
       if (torrentData[data.infoHash].complete) {
         if (torrentData[data.infoHash].img) {
@@ -134,6 +130,12 @@ function redraw () {
           document.body.appendChild(video)
           pipeToVideo(torrentData[data.infoHash].videoStream, video)
         }
+      } else {
+        ctx.fillStyle = 'rgb(210,210,210)'
+        ctx.fillRect(
+          data.pos.x - (data.width / 4), data.pos.y - (data.height / 4),
+          data.width / 2, data.height / 2
+        )
       }
     }
   })
@@ -258,8 +260,10 @@ function onMessage (peer, data) {
 }
 
 dragDrop('body', function (files, pos) {
-  client.seed(files, function (torrent) {
-    if (/.webm$/.test(files[0].name)) {
+  client.seed(files[0], {
+    announce: [ TRACKER_URL ]
+  }, function (torrent) {
+    if (/.webm|.mp4|.m4v$/.test(files[0].name)) {
       var message = {
         video: true,
         infoHash: torrent.infoHash,
@@ -269,14 +273,15 @@ dragDrop('body', function (files, pos) {
       state[torrent.infoHash] = message
 
       var videoStream = new stream.PassThrough()
-      videoStream.end(files[0].buffer)
+      videoStream.end(files[0])
       torrentData[torrent.infoHash] = {
         complete: true,
         videoStream: videoStream
       }
       redraw()
-    } else {
-      bufToImage(files[0].buffer, function (img) {
+    } else if (/.jpg|.png|.gif$/.test(files[0].name)) {
+      toImage(files[0], function (err, img) {
+        if (err) return console.error(err)
         var message = {
           img: true,
           infoHash: torrent.infoHash,
@@ -293,12 +298,14 @@ dragDrop('body', function (files, pos) {
   })
 })
 
-function bufToImage (buf, cb) {
+function toImage (buf, cb) {
+  var blob = Buffer.isBuffer(buf)
+    ? new window.Blob([ buf ])
+    : buf
   var img = new window.Image()
-  img.src = window.URL.createObjectURL(new window.Blob([ buf ]))
-  img.onload = function () {
-    cb(img)
-  }
+  img.src = window.URL.createObjectURL(blob)
+  img.onload = function () { cb(null, img) }
+  img.onerror = function (err) { cb(err) }
 }
 
 function pipeToVideo (stream, video) {
