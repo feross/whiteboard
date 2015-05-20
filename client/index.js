@@ -23,6 +23,12 @@ var peerId = new Buffer(hat(160), 'hex')
 
 var torrentData = {}
 var client = new WebTorrent({ peerId: peerId })
+client.on('error', function (err) {
+  console.error(err.stack || err.message || err)
+})
+client.on('warning', function (err) {
+  console.error(err.stack || err.message || err)
+})
 
 // create canvas
 var canvas = document.createElement('canvas')
