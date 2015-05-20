@@ -47,6 +47,6 @@
     "start": "node server.js",
     "start-app": "electron app 2>&1 | silence-chromium",
     "test": "standard",
-    "watch": "watchify client -o static/bundle.js -v & DEBUG=whiteboard* nodemon server.js"
+    "watch": "watchify client -o static/bundle.js -dv & DEBUG=whiteboard* nodemon server.js"
   }
 }
