@@ -11,11 +11,11 @@
     if (typeof require !== 'function') {
       // If we are in a web env
       var script = document.createElement('script')
-      script.src = 'bundle.js'
+      script.src = './bundle.js'
       document.currentScript.parentNode.insertBefore(script, document.currentScript)
     } else {
       // If we are in the electron env
-      require('../client')
+      require('./bundle')
     }
     </script>
   </body>
