@@ -19,6 +19,7 @@
     "silence-chromium": "^2.0.0",
     "through": "^2.3.4",
     "uglify-js": "^2.4.15",
+    "videostream": "0.x",
     "webtorrent": "0.x"
   },
   "devDependencies": {
