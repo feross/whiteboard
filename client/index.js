@@ -1,10 +1,9 @@
 var catNames = require('cat-names')
 var dragDrop = require('drag-drop')
 var hat = require('hat')
-var once = require('once')
-var stream = require('stream')
-var through = require('through')
+var path = require('path')
 var Tracker = require('bittorrent-tracker/client')
+var videostream = require('videostream')
 var WebTorrent = require('webtorrent')
 
 // var TRACKER_URL = 'wss://tracker.webtorrent.io'
@@ -85,7 +84,7 @@ function redraw () {
       ctx.stroke()
     }
 
-    // draw images
+    // draw images/video/audio
     if (data.infoHash) {
       if (!torrentData[data.infoHash]) {
         torrentData[data.infoHash] = { complete: false }
@@ -104,10 +103,11 @@ function redraw () {
                 redraw()
               })
             })
-          } else if (data.video) {
+          } else if (data.stream) {
             torrentData[data.infoHash] = {
               complete: true,
-              videoStream: file.createReadStream()
+              stream: true,
+              file: file
             }
             redraw()
           }
@@ -120,21 +120,43 @@ function redraw () {
             data.pos.x - (data.width / 4), data.pos.y - (data.height / 4),
             data.width / 2, data.height / 2
           )
-        } else if (torrentData[data.infoHash].videoStream) {
+        } else if (torrentData[data.infoHash].stream) {
+          console.log(torrentData[data.infoHash])
+          var extname = path.extname(torrentData[data.infoHash].file.name)
           if (document.querySelector('#' + 'infoHash_' + data.infoHash)) return
-          var video = document.createElement('video')
-          video.style.left = (data.pos.x - 150) + 'px'
-          video.style.top = (data.pos.y - 100) + 'px'
-          video.id = 'infoHash_' + data.infoHash
-          video.controls = true
-          document.body.appendChild(video)
-          pipeToVideo(torrentData[data.infoHash].videoStream, video)
+          var media
+          if (extname === '.mp4' || extname === '.m4v' || extname === '.webm') {
+            media = document.createElement('video')
+          } else if (extname === '.mp3') {
+            media = document.createElement('audio')
+          }
+
+          media.style.left = (data.pos.x - 150) + 'px'
+          media.style.top = (data.pos.y - 100) + 'px'
+          media.id = 'infoHash_' + data.infoHash
+          media.controls = true
+          media.autoplay = true
+          media.loop = true
+          document.body.appendChild(media)
+
+          var file = torrentData[data.infoHash].file
+          if (extname === '.mp4' || extname === '.m4v') {
+            videostream(file, media)
+          } else {
+            file.createReadStream().pipe(media)
+          }
         }
       } else {
         ctx.fillStyle = 'rgb(210,210,210)'
+        var width = data.pos.width
+        var height = data.pos.height
+        if (torrentData[data.infoHash].stream) {
+          width = 240
+          height = 135
+        }
         ctx.fillRect(
-          data.pos.x - (data.width / 4), data.pos.y - (data.height / 4),
-          data.width / 2, data.height / 2
+          data.pos.x - (width / 4), data.pos.y - (height / 4),
+          width / 2, height / 2
         )
       }
     }
@@ -212,10 +234,14 @@ tracker.on('peer', function (peer) {
   else peer.once('connect', onConnect)
 
   function onConnect () {
+    peer.on('data', onMessage)
+    peer.on('close', onClose)
+    peer.on('error', onClose)
+    peer.on('end', onClose)
     peer.send({ username: username, color: color, state: state })
-    peer.on('data', onMessage.bind(undefined, peer))
 
     function onClose () {
+      peer.removeListener('data', onMessage)
       peer.removeListener('close', onClose)
       peer.removeListener('error', onClose)
       peer.removeListener('end', onClose)
@@ -223,60 +249,56 @@ tracker.on('peer', function (peer) {
       redraw()
     }
 
-    peer.on('close', onClose)
-    peer.on('error', onClose)
-    peer.on('end', onClose)
+    function onMessage (data) {
+      if (data.username) {
+        peer.username = data.username
+        peer.color = data.color
+        redraw()
+      }
+
+      if (data.state) {
+        Object.keys(data.state)
+          .filter(function (id) {
+            return !state[id]
+          })
+          .forEach(function (id) {
+            state[id] = data.state[id]
+          })
+        redraw()
+      }
+
+      if (data.pt) {
+        if (!state[data.i]) state[data.i] = { pts: [], color: data.color }
+        state[data.i].pts.push(data.pt)
+        redraw()
+      }
+
+      if (data.infoHash) {
+        state[data.infoHash] = data
+        redraw()
+      }
+    }
   }
 })
 
-function onMessage (peer, data) {
-  if (data.username) {
-    peer.username = data.username
-    peer.color = data.color
-    redraw()
-  }
-
-  if (data.state) {
-    Object.keys(data.state)
-      .filter(function (id) {
-        return !state[id]
-      })
-      .forEach(function (id) {
-        state[id] = data.state[id]
-      })
-    redraw()
-  }
-
-  if (data.pt) {
-    if (!state[data.i]) state[data.i] = { pts: [], color: data.color }
-    state[data.i].pts.push(data.pt)
-    redraw()
-  }
-
-  if (data.infoHash) {
-    state[data.infoHash] = data
-    redraw()
-  }
-}
 
 dragDrop('body', function (files, pos) {
   client.seed(files[0], {
     announce: [ TRACKER_URL ]
   }, function (torrent) {
-    if (/.webm|.mp4|.m4v$/.test(files[0].name)) {
+    if (/.webm|.mp4|.m4v|.mp3$/.test(files[0].name)) {
       var message = {
-        video: true,
+        stream: true,
         infoHash: torrent.infoHash,
         pos: pos
       }
+      console.log(message)
       broadcast(message)
       state[torrent.infoHash] = message
-
-      var videoStream = new stream.PassThrough()
-      videoStream.end(files[0])
       torrentData[torrent.infoHash] = {
         complete: true,
-        videoStream: videoStream
+        stream: true,
+        file: torrent.files[0]
       }
       redraw()
     } else if (/.jpg|.png|.gif$/.test(files[0].name)) {
@@ -291,7 +313,10 @@ dragDrop('body', function (files, pos) {
         }
         broadcast(message)
         state[torrent.infoHash] = message
-        torrentData[torrent.infoHash] = { complete: true, img: img }
+        torrentData[torrent.infoHash] = {
+          complete: true,
+          img: img
+        }
         redraw()
       })
     }
@@ -306,46 +331,6 @@ function toImage (buf, cb) {
   img.src = window.URL.createObjectURL(blob)
   img.onload = function () { cb(null, img) }
   img.onerror = function (err) { cb(err) }
-}
-
-function pipeToVideo (stream, video) {
-  window.video = video
-  var MediaSource_ = window.MediaSource || window.WebKitMediaSource
-
-  var mediaSource = new MediaSource_()
-  var url = window.URL.createObjectURL(mediaSource)
-
-  video.src = url
-
-  var sourceopen = once(function () {
-    var sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vorbis,vp8"')
-
-    var chunks = []
-    stream.pipe(through(function (buf) {
-      chunks.push(buf)
-      flow()
-    }))
-
-    var play = once(function () {
-      video.play()
-    })
-
-    function flow () {
-      if (sourceBuffer.updating) return
-      play()
-      var buf = chunks.shift()
-      if (buf) sourceBuffer.appendBuffer(buf)
-    }
-
-    sourceBuffer.addEventListener('updateend', flow)
-
-    stream.on('end', function () {
-      mediaSource.endOfStream()
-    })
-  })
-
-  mediaSource.addEventListener('webkitsourceopen', sourceopen, false)
-  mediaSource.addEventListener('sourceopen', sourceopen, false)
 }
 
 var ua = navigator.userAgent.toLowerCase()

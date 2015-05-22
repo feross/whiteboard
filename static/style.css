@@ -53,6 +53,6 @@ body:not(.android) canvas {
   border: red 5px dashed;
 }
 
-video {
+video, audio {
   position: absolute;
 }
