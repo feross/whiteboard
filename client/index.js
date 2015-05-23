@@ -148,8 +148,9 @@ function redraw () {
         }
       } else {
         ctx.fillStyle = 'rgb(210,210,210)'
-        var width = data.pos.width
-        var height = data.pos.height
+        var width = data.width
+        var height = data.height
+        console.log(width, height)
         if (torrentData[data.infoHash].stream) {
           width = 240
           height = 135
