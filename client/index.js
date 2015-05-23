@@ -6,8 +6,8 @@ var Tracker = require('bittorrent-tracker/client')
 var videostream = require('videostream')
 var WebTorrent = require('webtorrent')
 
-// var TRACKER_URL = 'wss://tracker.webtorrent.io'
-var TRACKER_URL = 'ws://localhost:9000'
+var TRACKER_URL = 'wss://tracker.webtorrent.io'
+// var TRACKER_URL = 'ws://localhost:9000'
 
 var username = catNames.random()
 
