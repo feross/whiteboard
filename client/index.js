@@ -57,7 +57,7 @@ function setupCanvas () {
   // set stroke options
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
-  ctx.lineWidth = 5
+  ctx.lineWidth = 4
 
   // set font options
   ctx.fillStyle = 'rgb(255,0,0)'
