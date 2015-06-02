@@ -1,13 +1,52 @@
 var catNames = require('cat-names')
+var debug = require('debug')
 var dragDrop = require('drag-drop')
 var hat = require('hat')
 var path = require('path')
+var Peer = require('simple-peer')
+var thunky = require('thunky')
 var Tracker = require('bittorrent-tracker/client')
 var videostream = require('videostream')
 var WebTorrent = require('webtorrent')
+var xhr = require('xhr')
 
 var TRACKER_URL = 'wss://tracker.webtorrent.io'
-// var TRACKER_URL = 'ws://localhost:9000'
+
+global.WEBTORRENT_ANNOUNCE = [ TRACKER_URL ]
+
+if (!Peer.WEBRTC_SUPPORT) {
+  window.alert('This browser is unsupported. Please use a browser with WebRTC support.')
+}
+
+var getClient = thunky(function (cb) {
+  xhr('http://localhost:9100/rtcConfig', function (err, res) {
+    var rtcConfig
+    if (err || res.statusCode !== 200) {
+      window.alert('Could not get WebRTC config from server. Using default (without TURN).')
+    } else {
+      try {
+        rtcConfig = JSON.parse(res.body)
+      } catch (err) {
+        window.alert('Got invalid WebRTC config from server: ' + res.body)
+      }
+      if (rtcConfig) debug('got rtc config: %o', rtcConfig)
+    }
+
+    var client = new WebTorrent({ peerId: peerId, rtcConfig: rtcConfig })
+    client.on('error', function (err) {
+      window.alert(err.message || err)
+    })
+    client.on('warning', function (err) {
+      console.error(err.message || err)
+    })
+    cb(null, client)
+  })
+})
+
+getClient(function (err, client) {
+  if (err) return window.alert(err.message || err)
+  window.client = client
+})
 
 var username = catNames.random()
 
@@ -20,13 +59,6 @@ var peers = []
 var peerId = new Buffer(hat(160), 'hex')
 
 var torrentData = {}
-var client = new WebTorrent({ peerId: peerId })
-client.on('error', function (err) {
-  console.error(err.stack || err.message || err)
-})
-client.on('warning', function (err) {
-  console.error(err.stack || err.message || err)
-})
 
 // create canvas
 var canvas = document.createElement('canvas')
@@ -88,29 +120,29 @@ function redraw () {
     if (data.infoHash) {
       if (!torrentData[data.infoHash]) {
         torrentData[data.infoHash] = { complete: false }
-        client.download({
-          infoHash: data.infoHash,
-          announce: [ TRACKER_URL ]
-        }, function (torrent) {
-          var file = torrent.files[0]
-          if (!file) return
-          if (data.img) {
-            file.getBuffer(function (err, buf) {
-              if (err) return console.error(err)
-              toImage(buf, function (err, img) {
+        getClient(function (err, client) {
+          if (err) return window.alert(err.message || err)
+          client.download(data.infoHash, function (torrent) {
+            var file = torrent.files[0]
+            if (!file) return
+            if (data.img) {
+              file.getBuffer(function (err, buf) {
                 if (err) return console.error(err)
-                torrentData[data.infoHash] = { complete: true, img: img }
-                redraw()
+                toImage(buf, function (err, img) {
+                  if (err) return console.error(err)
+                  torrentData[data.infoHash] = { complete: true, img: img }
+                  redraw()
+                })
               })
-            })
-          } else if (data.stream) {
-            torrentData[data.infoHash] = {
-              complete: true,
-              stream: true,
-              file: file
+            } else if (data.stream) {
+              torrentData[data.infoHash] = {
+                complete: true,
+                stream: true,
+                file: file
+              }
+              redraw()
             }
-            redraw()
-          }
+          })
         })
       }
       if (torrentData[data.infoHash].complete) {
@@ -222,7 +254,7 @@ function onMove (e) {
 }
 
 var tracker = new Tracker(peerId, 0, {
-  announce: [ TRACKER_URL ],
+  announce: TRACKER_URL,
   infoHash: new Buffer(20).fill('webrtc-whiteboard')
 })
 
@@ -282,45 +314,45 @@ tracker.on('peer', function (peer) {
   }
 })
 
-
 dragDrop('body', function (files, pos) {
-  client.seed(files[0], {
-    announce: [ TRACKER_URL ]
-  }, function (torrent) {
-    if (/.webm|.mp4|.m4v|.mp3$/.test(files[0].name)) {
-      var message = {
-        stream: true,
-        infoHash: torrent.infoHash,
-        pos: pos
-      }
-      console.log(message)
-      broadcast(message)
-      state[torrent.infoHash] = message
-      torrentData[torrent.infoHash] = {
-        complete: true,
-        stream: true,
-        file: torrent.files[0]
-      }
-      redraw()
-    } else if (/.jpg|.png|.gif$/.test(files[0].name)) {
-      toImage(files[0], function (err, img) {
-        if (err) return console.error(err)
+  getClient(function (err, client) {
+    if (err) return window.alert(err.message || err)
+    client.seed(files[0], function (torrent) {
+      if (/.webm|.mp4|.m4v|.mp3$/.test(files[0].name)) {
         var message = {
-          img: true,
+          stream: true,
           infoHash: torrent.infoHash,
-          pos: pos,
-          width: img.width,
-          height: img.height
+          pos: pos
         }
         broadcast(message)
         state[torrent.infoHash] = message
         torrentData[torrent.infoHash] = {
           complete: true,
-          img: img
+          stream: true,
+          file: torrent.files[0]
         }
         redraw()
-      })
-    }
+      } else if (/.jpg|.png|.gif$/.test(files[0].name)) {
+        toImage(files[0], function (err, img) {
+          if (err) return console.error(err)
+          var message = {
+            img: true,
+            infoHash: torrent.infoHash,
+            pos: pos,
+            width: img.width,
+            height: img.height
+          }
+          broadcast(message)
+          state[torrent.infoHash] = message
+          torrentData[torrent.infoHash] = {
+            complete: true,
+            img: img
+          }
+          redraw()
+        })
+      }
+    })
+
   })
 })
 
