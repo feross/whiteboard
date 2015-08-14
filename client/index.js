@@ -352,7 +352,6 @@ dragDrop('body', function (files, pos) {
         })
       }
     })
-
   })
 })
 
