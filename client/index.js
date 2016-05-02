@@ -208,7 +208,7 @@ function redraw () {
 
 function broadcast (obj) {
   peers.forEach(function (peer) {
-    if (peer.connected) peer.send(obj)
+    if (peer.connected) peer.send(JSON.stringify(obj))
   })
 }
 
@@ -253,7 +253,8 @@ function onMove (e) {
   }
 }
 
-var tracker = new Tracker(peerId, 0, {
+var tracker = new Tracker({
+  peerId: peerId,
   announce: TRACKER_URL,
   infoHash: new Buffer(20).fill('webrtc-whiteboard')
 })
@@ -271,7 +272,7 @@ tracker.on('peer', function (peer) {
     peer.on('close', onClose)
     peer.on('error', onClose)
     peer.on('end', onClose)
-    peer.send({ username: username, color: color, state: state })
+    peer.send(JSON.stringify({ username: username, color: color, state: state }))
 
     function onClose () {
       peer.removeListener('data', onMessage)
@@ -283,6 +284,11 @@ tracker.on('peer', function (peer) {
     }
 
     function onMessage (data) {
+      try {
+        data = JSON.parse(data)
+      } catch (err) {
+        console.error(err.message)
+      }
       if (data.username) {
         peer.username = data.username
         peer.color = data.color
