@@ -22,7 +22,7 @@
     "through": "^2.3.4",
     "thunky": "^0.1.0",
     "uglify-js": "^2.4.15",
-    "videostream": "^1.0.0",
+    "videostream": "^2.3.0",
     "webtorrent": "0.x",
     "xhr": "^2.0.1"
   },
