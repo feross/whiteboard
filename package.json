@@ -27,7 +27,7 @@
     "xhr": "^2.0.1"
   },
   "devDependencies": {
-    "browserify": "^13.0.0",
+    "browserify": "^14.0.0",
     "nodemon": "^1.2.1",
     "standard": "*",
     "watchify": "^3.0.0"
