@@ -5084,7 +5084,7 @@ watchify@^3.0.0:
     through2 "^2.0.0"
     xtend "^4.0.0"
 
-webtorrent@0.x:
+webtorrent@^0.98.20:
   version "0.98.20"
   resolved "https://registry.yarnpkg.com/webtorrent/-/webtorrent-0.98.20.tgz#f335869185a64447b6fe730c3c66265620b8c14a"
   dependencies:

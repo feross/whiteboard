@@ -12,7 +12,7 @@ var videostream = require('videostream')
 var WebTorrent = require('webtorrent')
 var xhr = require('xhr')
 
-var TRACKER_URL = 'wss://tracker.webtorrent.io'
+var TRACKER_URL = 'wss://tracker.fastcast.nz'
 
 global.WEBTORRENT_ANNOUNCE = [ TRACKER_URL ]
 
