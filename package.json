@@ -13,7 +13,6 @@
     "concat-stream": "^1.4.6",
     "debug": "^2.2.0",
     "drag-drop": "^2.0.0",
-    "electron-prebuilt": "^0.26.0",
     "express": "^4.9.0",
     "hat": "0.0.3",
     "once": "^1.3.0",
@@ -23,11 +22,12 @@
     "thunky": "^0.1.0",
     "uglify-js": "^2.4.15",
     "videostream": "^2.3.0",
-    "webtorrent": "0.x",
+    "webtorrent": "^0.98.20",
     "xhr": "^2.0.1"
   },
   "devDependencies": {
     "browserify": "^14.0.0",
+    "electron": "^1.7.10",
     "nodemon": "^1.2.1",
     "standard": "*",
     "watchify": "^3.0.0"
