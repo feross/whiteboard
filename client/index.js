@@ -262,6 +262,7 @@ var tracker = new Tracker({
 tracker.start()
 
 tracker.on('peer', function (peer) {
+  if (peers.includes(peer)) return undefined
   peers.push(peer)
 
   if (peer.connected) onConnect()
