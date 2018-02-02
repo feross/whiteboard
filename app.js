@@ -2,7 +2,7 @@ const { BrowserWindow, app } = require('electron')
 const path = require('path')
 
 const APP_NAME = 'Whiteboard'
-const INDEX = 'file://' + path.join(__dirname, 'static/index.html')
+const INDEX = 'file://' + path.join(__dirname, 'static/main.html')
 
 app.on('ready', appReady)
 
