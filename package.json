@@ -49,7 +49,7 @@
   },
   "scripts": {
     "build": "browserify client > static/bundle.js",
-    "compile": "npm run build && mv static/ out/",
+    "compile": "npm run build && && rsync -av static/ out/",
     "start": "node server.js",
     "start-app": "electron app 2>&1 | silence-chromium",
     "test": "standard",
