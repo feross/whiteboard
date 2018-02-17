@@ -19,20 +19,7 @@ if (!Peer.WEBRTC_SUPPORT) {
 }
 
 var getClient = thunky(function (cb) {
-  xhr('http://localhost:9100/rtcConfig', function (err, res) {
-    var rtcConfig
-    if (err || res.statusCode !== 200) {
-      window.alert('Could not get WebRTC config from server. Using default (without TURN).')
-    } else {
-      try {
-        rtcConfig = JSON.parse(res.body)
-      } catch (err) {
-        window.alert('Got invalid WebRTC config from server: ' + res.body)
-      }
-      if (rtcConfig) debug('got rtc config: %o', rtcConfig)
-    }
-
-    var client = new WebTorrent({ peerId: peerId, rtcConfig: rtcConfig })
+    var client = new WebTorrent({ peerId: peerId })
     client.on('error', function (err) {
       window.alert(err.message || err)
     })
@@ -40,7 +27,6 @@ var getClient = thunky(function (cb) {
       console.error(err.message || err)
     })
     cb(null, client)
-  })
 })
 
 getClient(function (err, client) {
@@ -59,7 +45,7 @@ var peers = []
 var peerId = new Buffer(hat(160), 'hex')
 
 var torrentData = {}
-
+window.states = { torrentData, peers, peerId, state, currentPathId }
 // create canvas
 var canvas = document.createElement('canvas')
 var ctx = canvas.getContext('2d')
@@ -262,6 +248,7 @@ var tracker = new Tracker({
 tracker.start()
 
 tracker.on('peer', function (peer) {
+  if (peers.includes(peer)) return undefined
   peers.push(peer)
 
   if (peer.connected) onConnect()
